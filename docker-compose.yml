@@ -1,0 +1,92 @@
+# 🌐 REDE DECLARADA DE FORMA EXPLICITA NO TOPO (Padrão de Mercado)
+networks:
+  saga-network:
+    driver: bridge
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq_saga
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    networks:
+      - saga-network
+
+ # 📈 PROMETHEUS: Vai entrar nas aplicações Java e puxar as métricas de segundo em segundo
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus_saga
+    ports:
+      - "9090:9090"
+    volumes:
+      - "./prometheus.yml:/etc/prometheus/prometheus.yml"
+    networks:
+      - saga-network
+
+  # 📊 GRAFANA: Painel visual para criar os gráficos baseados no Prometheus
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana_saga
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+    networks:
+      - saga-network
+
+  # 🐘 Bancos de Dados Isolados
+  postgres-order:
+    image: postgres:15-alpine
+    container_name: postgres_order_db
+    ports: ["5433:5432"]
+    environment:
+      - POSTGRES_DB=order_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=admin
+
+  postgres-payment:
+    image: postgres:15-alpine
+    container_name: postgres_payment_db
+    ports: ["5434:5432"]
+    environment:
+      - POSTGRES_DB=payment_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=admin
+
+  postgres-inventory:
+    image: postgres:15-alpine
+    container_name: postgres_inventory_db
+    ports: ["5435:5432"]
+    environment:
+      - POSTGRES_DB=inventory_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=admin
+
+  postgres-product:
+    image: postgres:15-alpine
+    container_name: postgres_product_db
+    ports: ["5436:5432"] # Porta 5436 na máquina física
+    environment:
+      - POSTGRES_DB=product_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=admin
+  
+  localstack:
+    image: localstack/localstack:latest
+    container_name: localstack_s3
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3
+      - AWS_DEFAULT_REGION= east-1
+      - LOCALSTACK_AUTH_TOKEN=ls-sisAKExo-KoMa-MitO-2515-XoLU226414ba
+    volumes:
+      - "./localstack-init:/etc/localstack/init/ready.d"
+    networks:
+      - saga-network

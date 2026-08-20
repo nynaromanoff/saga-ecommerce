@@ -1,0 +1,50 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: product-service
+  profiles:
+    active: local
+
+  cloud:
+    config:
+      enabled: false
+      import-check:
+        enabled: false
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+  datasource:
+    url: jdbc:postgresql://localhost:5436/product_db
+    username: postgres
+    password: admin
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name
+
+aws:
+  s3:
+    bucket-name: saga-products-imagens
+    region: us-east-1
+    endpoint: http://localhost:4566
+  access-key-id: test
+  secret-access-key: test

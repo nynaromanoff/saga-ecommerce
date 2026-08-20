@@ -1,0 +1,39 @@
+server:
+  port: 8082
+spring:
+  application:
+    name: payment-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5434/payment_db
+    username: postgres
+    password: admin
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    connection-timeout: 10000ms # Aguarda at� 10 segundos pela conex�o
+    listener:
+      simple:
+        retry:
+          enabled: true
+          initial-interval: 2000ms
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus # 🚀 Abre o endpoint do Prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name
