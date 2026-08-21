@@ -37,3 +37,6 @@ management:
   metrics:
     tags:
       application: ${spring.application.name
+
+stripe:
+  secret-key: ${STRIPE_SECRET_KEY:sk_test_chave_test}
