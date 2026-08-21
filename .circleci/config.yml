@@ -1,22 +1,18 @@
 version: 2.1
 
-# 1. Definição de comandos reutilizáveis para reaproveitamento de código
 jobs:
   build-and-test:
     docker:
-      # Imagem oficial do Maven com Java 17 no ambiente Linux
       - image: cimg/openjdk:17.0.13-node
     
     steps:
-      - checkout # Copia o código do seu GitHub para dentro do CircleCI
+      - checkout
 
-      # 2. Restaura o cache do Maven para acelerar o processo
       - restore_cache:
           keys:
             - v1-dependencies-{{ checksum "order-service/pom.xml" }}
             - v1-dependencies-
 
-      # 3. Executa os testes unitários e o build de todos os microsserviços
       - run:
           name: Executando Testes e Compilação dos Microsserviços
           command: |
@@ -24,17 +20,14 @@ jobs:
             # Executa o comando do Maven silenciando os avisos de agente dinâmico do Java 21
             mvn clean verify -DargLine="-XX:+EnableDynamicAgentLoading"
 
-      # 4. Salva as novas dependências baixadas no cache do CircleCI
       - save_cache:
           paths:
             - ~/.m2
           key: v1-dependencies-{{ checksum "order-service/pom.xml" }}
 
-      # 5. Armazena os relatórios de teste do JUnit para exibição no painel
       - store_test_results:
           path: target/surefire-reports
 
-# 4. Orquestração do fluxo de trabalho (Workflow)
 workflows:
   version: 2
   pipeline-ecommerce:
