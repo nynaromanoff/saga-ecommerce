@@ -76,7 +76,7 @@ public class InventoryService {
                     .ifPresent(inventory -> {
                         int estoqueEstornado =
                                 inventory.getAvailableQuantity() + item.quantity();
-                        
+
                         inventory.setAvailableQuantity(estoqueEstornado);
                         repository.save(inventory);
 

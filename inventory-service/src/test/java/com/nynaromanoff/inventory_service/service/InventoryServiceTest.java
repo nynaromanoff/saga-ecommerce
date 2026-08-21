@@ -72,7 +72,7 @@ class InventoryServiceTest {
 
         when(inventoryRepository.findByProductSkuIgnoreCase("NOTE-GAMER-01")).thenReturn(Optional.of(estoqueReturn ));
         inventoryService.returnStockFromFailedOrder(event);
-        assertEquals(7, estoqueReturn .getAvailableQuantity());
+        assertEquals(13, estoqueReturn .getAvailableQuantity());
         verify(inventoryRepository, times(1)).save(estoqueReturn );
     }
 }
