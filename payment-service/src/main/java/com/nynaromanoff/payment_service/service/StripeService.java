@@ -30,7 +30,7 @@ public class StripeService {
                     .setAmount(amountInCents)
                     .setCurrency("brl") // Define a moeda como Real Brasileiro
                     // Em produção, você capturaria o token do cartão vindo do front-end React
-                    .setPaymentMethod("pm_card_chargeDeclined") // Token oficial de teste da Stripe para cartão Visa válido
+                    .setPaymentMethod("pm_card_visa") // Token oficial de teste da Stripe para cartão Visa válido
                     .setConfirm(true) // Confirma o pagamento imediatamente
                     .setAutomaticPaymentMethods(
                             PaymentIntentCreateParams.AutomaticPaymentMethods.builder()
