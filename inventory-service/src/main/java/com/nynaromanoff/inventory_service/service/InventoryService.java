@@ -74,10 +74,9 @@ public class InventoryService {
         for (var item : event.items()) {
             repository.findByProductSkuIgnoreCase(item.productSku())
                     .ifPresent(inventory -> {
-                        Integer estoqueEstornado =
-                                inventory
-                                         .getAvailableQuantity()
-                                        + item.quantity();
+                        int estoqueEstornado =
+                                inventory.getAvailableQuantity() + item.quantity();
+                        
                         inventory.setAvailableQuantity(estoqueEstornado);
                         repository.save(inventory);
 
