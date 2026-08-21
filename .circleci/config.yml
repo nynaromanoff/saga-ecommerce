@@ -4,31 +4,36 @@ jobs:
   build-and-test:
     docker:
       - image: cimg/openjdk:17.0.13-node
-    
     steps:
-      - checkout 
+      - checkout
       - restore_cache:
           keys:
             - v1-dependencies-{{ checksum "order-service/pom.xml" }}
             - v1-dependencies-
-
       - run:
           name: Executando Testes e Compilação do Order Service
           command: |
             echo "Iniciando build do Order Service..."
-            # O parâmetro "-f" avisa o Maven para entrar na pasta e ler o POM correto
             mvn clean verify -f order-service/pom.xml -DargLine="-XX:+EnableDynamicAgentLoading"
-
       - run:
           name: Executando Testes e Compilação do Inventory Service
           command: |
             echo "Iniciando build do Inventory Service..."
             mvn clean verify -f inventory-service/pom.xml -DargLine="-XX:+EnableDynamicAgentLoading"
-
       - save_cache:
           paths:
             - ~/.m2
           key: v1-dependencies-{{ checksum "order-service/pom.xml" }}
-
       - store_test_results:
           path: order-service/target/surefire-reports
+
+workflows:
+  version: 2
+  pipeline-ecommerce:
+    jobs:
+      - build-and-test:
+          filters:
+            branches:
+              only:
+                - main
+                - develop
