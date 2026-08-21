@@ -7,6 +7,7 @@ import com.nynaromanoff.product_service.model.Product;
 import com.nynaromanoff.product_service.producer.ProductProducer;
 import com.nynaromanoff.product_service.repository.ProductRepository;
 import com.nynaromanoff.product_service.service.StorageService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -16,7 +17,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.UUID;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/products")
 public class ProductController {
@@ -82,6 +85,21 @@ public class ProductController {
                                                          Pageable pageable) {
         Page<Product> products = repository.findByNameContainingIgnoreCase(name, pageable);
         return ResponseEntity.ok(products);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        log.info("Iniciando processo de exclusão do produto ID: {}", id);
+
+        return repository.findById(id)
+                .map(product -> {
+                    storage.deleteFile(product.getImageUrl());
+                    repository.delete(product);
+                    log.info("✅ Produto ID {} e sua imagem correspondente foram excluídos.", id);
+
+              return ResponseEntity.noContent().<Void>build();
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
 
 }

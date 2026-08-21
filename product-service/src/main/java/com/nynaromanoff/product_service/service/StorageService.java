@@ -1,16 +1,19 @@
 package com.nynaromanoff.product_service.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
 import java.util.UUID;
 
 @Service
+@Slf4j
 public class StorageService {
     private final S3Client s3Client;
 
@@ -51,6 +54,27 @@ public class StorageService {
             return "https://" + bucketName + ".s3." + region + "://" + fileName;
         } catch (IOException e) {
             throw new RuntimeException("Erro ao processar o arquivo para upload no S3", e);
+        }
+    }
+
+    public void deleteFile(String imageUrl) {
+        if (imageUrl == null || imageUrl.isBlank()) {
+            return;
+        }
+
+        try {
+            String fileKey = imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
+
+            DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(fileKey)
+                    .build();
+
+            s3Client.deleteObject(deleteObjectRequest);
+            log.info("🗑️ [S3] Imagem removida com sucesso do storage: {}", fileKey);
+
+        } catch (Exception e) {
+            log.error("⚠️ Erro ao tentar remover arquivo do S3/LocalStack: {}", imageUrl, e);
         }
     }
 
