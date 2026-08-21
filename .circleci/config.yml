@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   build-and-test:
     docker:
-      - image: cimg/openjdk:17.0.13-node
+      - image: cimg/openjdk:21.0.5-node
     steps:
       - checkout
       - restore_cache:
@@ -13,12 +13,13 @@ jobs:
       - run:
           name: Executando Testes e Compilação do Order Service
           command: |
-            echo "Iniciando build do Order Service..."
+            echo "Iniciando build do Order Service com Java 21..."
+            # O sinalizador -XX:+EnableDynamicAgentLoading garante o silenciamento de avisos no Java 21+
             mvn clean verify -f order-service/pom.xml -DargLine="-XX:+EnableDynamicAgentLoading"
       - run:
           name: Executando Testes e Compilação do Inventory Service
           command: |
-            echo "Iniciando build do Inventory Service..."
+            echo "Iniciando build do Inventory Service com Java 21..."
             mvn clean verify -f inventory-service/pom.xml -DargLine="-XX:+EnableDynamicAgentLoading"
       - save_cache:
           paths:
