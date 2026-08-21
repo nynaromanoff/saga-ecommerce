@@ -40,7 +40,7 @@ public class OrderServiceTest {
     @Test
     @DisplayName("Deve criar um pedido com sucesso quando o produto for válido no catálogo")
     void createOrder_Success() {
-        ItemDTO itemRequest = new ItemDTO("NOTE-GAMER-01", 1);
+        ItemDTO itemRequest = new ItemDTO("NOTE-GAMER-01", 2);
         OrderRequest request = new OrderRequest(
                 "cliente-teste-id",
                 2,
