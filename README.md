@@ -17,7 +17,7 @@ O ecossistema é composto por 4 microsserviços autônomos que se comunicam de f
 
 ## 🛠️ Tecnologias e Padrões Utilizados
 
-*   **Core:** Java 17 & Spring Boot 3
+*   **Core:** Java 21 & Spring Boot 4
 *   **Data Tier:** PostgreSQL (Bancos de dados isolados por serviço / Database-per-service)
 *   **Messaging:** RabbitMQ (Mensageria assíncrona com Fanout Exchanges independentes)
 *   **Cloud & Storage:** AWS SDK v2, Amazon S3 & LocalStack (Simulação local de Cloud)
