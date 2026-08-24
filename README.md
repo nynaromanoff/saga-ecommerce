@@ -1,6 +1,6 @@
 # Saga Coreografada E-Commerce - Arquitetura de Microsserviços
 
-Este repositório contém um ecossistema distribuído de e-commerce construído em **Java 17** com **Spring Boot 3**, modelado sob a arquitetura de **Microsserviços Descentralizados** e orientado a eventos através do padrão **SAGA Coreografada**.
+Este repositório contém um ecossistema distribuído de e-commerce construído em **Java 21** com **Spring Boot 4**, modelado sob a arquitetura de **Microsserviços Descentralizados** e orientado a eventos através do padrão **SAGA Coreografada**.
 
 O projeto foi projetado com foco em alta resiliência, consistência eventual de dados, isolamento de domínios e observabilidade avançada.
 
