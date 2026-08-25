@@ -43,7 +43,7 @@ O ecossistema foi submetido a testes de estresse utilizando o **k6** para valida
 ### Como rodar o teste de carga:
 1. Certifique-se de que o k6 está instalado nativamente e execute na pasta `/tests`:
    ```bash
-   k6 run stress-test.js
+   k6 run load-test.js
    ```
 
 ### Métricas monitoradas no Grafana:
