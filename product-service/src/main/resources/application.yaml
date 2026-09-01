@@ -43,8 +43,8 @@ management:
 
 aws:
   s3:
-    bucket-name: saga-products-imagens
+    bucket-name: saga-ecommerce-products
     region: us-east-1
-    endpoint: http://localhost:4566
-  access-key-id: test
-  secret-access-key: test
+  credentials:
+    access-key: ${AWS_ACCESS_KEY_ID}
+    secret-key: ${AWS_SECRET_ACCESS_KEY}

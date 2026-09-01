@@ -25,37 +25,13 @@ public class AwsS3Config {
     @Value("${aws.s3.region}")
     private String region;
 
-    @Value("${aws.s3.endpoint:#{null}}")
-    private String endpoint;
-
-    @Value("${aws.s3.bucket-name}") // Pegamos o nome do bucket configurado
-    private String bucketName;
-
     @Bean
     public S3Client s3Client() {
         AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
 
-        S3ClientBuilder builder = S3Client.builder()
+        return S3Client.builder()
                 .region(Region.of(region))
-                .credentialsProvider(StaticCredentialsProvider.create(credentials));
-
-        if (endpoint != null && !endpoint.isBlank()) {
-            builder.endpointOverride(URI.create(endpoint));
-            builder.forcePathStyle(true);
-        }
-
-        S3Client s3Client = builder.build();
-
-        // 🔥 PULO DO GATO: Se for ambiente local, cria o bucket automaticamente se ele não existir
-        if (endpoint != null && !endpoint.isBlank()) {
-            try {
-                s3Client.headBucket(HeadBucketRequest.builder().bucket(bucketName).build());
-            } catch (NoSuchBucketException e) {
-                s3Client.createBucket(CreateBucketRequest.builder().bucket(bucketName).build());
-                System.out.println("🚀 Bucket '" + bucketName + "' criado automaticamente no LocalStack!");
-            }
-        }
-
-        return s3Client;
-    }
+                .credentialsProvider(StaticCredentialsProvider.create(credentials))
+                .build();
+}
 }
