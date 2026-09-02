@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import tools.jackson.databind.ObjectMapper;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Slf4j
@@ -34,36 +35,44 @@ public class ProductController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Product> create(
+    public ResponseEntity<ProductResponse> create(
             @RequestPart("product") ProductRequest request,
-            @RequestPart(value = "image", required = false) MultipartFile image) {
+            @RequestPart("file") MultipartFile file) {
 
-            if (repository.findBySku(request.getSku()).isPresent()) {
-                return ResponseEntity.status(HttpStatus.CONFLICT).build();
-            }
+        log.info("📢 [ProductAPI] Recebida requisição multipart para cadastrar produto: {} - R$ {}", request.name() , request.price());
 
-            String imageUrl = null;
-            if (image != null && !image.isEmpty()) {
-                imageUrl = storage.uploadFile(image);
-            }
+        if (file == null || file.isEmpty()) {
+            log.warn("⚠️ Falha ao processar: Nenhum arquivo de imagem foi enviado no formulário.");
+            return ResponseEntity.badRequest().build();
+        }
+        try {
+            String urlImagemS3 = storage.uploadFile(file);
+            log.info("✅ [S3] Upload concluído com sucesso. URL gerada: {}", urlImagemS3);
 
             Product product = Product.builder()
-                    .sku(request.getSku().toUpperCase())
-                    .name(request.getName())
-                    .description(request.getDescription())
-                    .price(request.getPrice())
-                    .imageUrl(imageUrl)
+                    .sku(request.sku())
+                    .name(request.name())
+                    .description(request.description())
+                    .price(request.price())
+                    .imageUrl(urlImagemS3) // Salva o link oficial da AWS na tabela
                     .build();
 
             repository.save(product);
+            log.info("💾 [Postgres] Produto salvo no banco de dados com ID: {}", product.getId());
 
-            ProductCreatedEvent event =  new ProductCreatedEvent(
-                    product.getId(),
+            ProductResponse response = new ProductResponse(
                     product.getSku(),
-                    product.getName());
-            productProducer.sendProductCreatedMessage(event);
+                    product.getName(),
+                    product.getDescription(),
+                    product.getPrice()
+            );
 
-            return ResponseEntity.status(HttpStatus.CREATED).body(product);
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+
+        } catch (Exception e) {
+            log.error("❌ Falha crítica ao processar cadastro de produto e upload na AWS", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     @GetMapping("/{sku}")

@@ -7,6 +7,7 @@ import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
@@ -23,37 +24,38 @@ public class StorageService {
     @Value("${aws.s3.region}")
     private String region;
 
-    @Value("${aws.s3.endpoint:#{null}}")
-    private String endpoint;
-
     public StorageService(S3Client s3Client) {
         this.s3Client = s3Client;
     }
 
     public String uploadFile(MultipartFile file) {
-        // Gera um nome único para o arquivo usando UUID
-        String extension = getFileExtension(file.getOriginalFilename());
-        String fileName = UUID.randomUUID().toString() + extension;
+        log.info("📤 [S3] Iniciando processamento de upload para o arquivo: {}", file.getOriginalFilename());
+
+        String originalFilename = file.getOriginalFilename();
+        String extension = originalFilename != null && originalFilename.contains(".")
+                ? originalFilename.substring(originalFilename.lastIndexOf("."))
+                : "";
+        String uniqueFileName = UUID.randomUUID().toString() + extension;
 
         try {
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(bucketName)
-                    .key(fileName)
+                    .key(uniqueFileName)
                     .contentType(file.getContentType())
                     .build();
 
-            // Envia o arquivo para o S3
-            s3Client.putObject(putObjectRequest,
-                    RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
 
-            if (endpoint != null && !endpoint.isBlank()) {
-                return endpoint + "/" + bucketName + "/" + fileName;
-            }
+            s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
 
-            // Retorna a URL pública do objeto armazenado
-            return "https://" + bucketName + ".s3." + region + "://" + fileName;
+            String publicUrl = "https://" + bucketName + ".s3." + region + "://" + uniqueFileName;            log.info("✅ [S3] Arquivo disponibilizado na nuvem com sucesso! URL: {}", publicUrl);
+            return publicUrl;
+
         } catch (IOException e) {
-            throw new RuntimeException("Erro ao processar o arquivo para upload no S3", e);
+            log.error("❌ [S3] Falha crítica de I/O ao tentar ler os bytes do arquivo {}", originalFilename, e);
+            throw new RuntimeException("Erro ao processar o arquivo binário para upload", e);
+        } catch (Exception e) {
+            log.error("❌ [S3] Erro inesperado ao transmitir dados para a API da AWS S3", e);
+            throw new RuntimeException("Falha na comunicação com a AWS S3", e);
         }
     }
 

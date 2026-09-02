@@ -50,7 +50,7 @@ services:
     environment:
       - POSTGRES_DB=order_db
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=admin
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 
   postgres-payment:
     image: postgres:15-alpine
@@ -59,7 +59,7 @@ services:
     environment:
       - POSTGRES_DB=payment_db
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=admin
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 
   postgres-inventory:
     image: postgres:15-alpine
@@ -68,7 +68,7 @@ services:
     environment:
       - POSTGRES_DB=inventory_db
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=admin
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 
   postgres-product:
     image: postgres:15-alpine
@@ -77,7 +77,7 @@ services:
     environment:
       - POSTGRES_DB=product_db
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=admin
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
   
   localstack:
     image: localstack/localstack:latest
@@ -87,7 +87,7 @@ services:
     environment:
       - SERVICES=s3
       - AWS_DEFAULT_REGION= east-1
-      - LOCALSTACK_AUTH_TOKEN=ls-sisAKExo-KoMa-MitO-2515-XoLU226414ba
+      - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN}
     volumes:
       - "./localstack-init:/etc/localstack/init/ready.d"
     networks:
