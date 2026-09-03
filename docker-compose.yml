@@ -73,9 +73,18 @@ services:
   postgres-product:
     image: postgres:15-alpine
     container_name: postgres_product_db
-    ports: ["5436:5432"] # Porta 5436 na máquina física
+    ports: ["5436:5432"] 
     environment:
       - POSTGRES_DB=product_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+
+  postgres-costumer:
+    image: postgres:15-alpine
+    container_name: postgres_costumer_db
+    ports: ["5437:5432"]
+    environment:
+      - POSTGRES_DB=constumer_db
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
   
