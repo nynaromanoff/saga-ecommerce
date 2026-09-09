@@ -6,5 +6,6 @@ public record CustomerRequest(
         String email,
         String cpf,
         String phone,
+        String password,
         Boolean active) {
 }

@@ -79,12 +79,12 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 
-  postgres-costumer:
+  postgres-customer:
     image: postgres:15-alpine
-    container_name: postgres_costumer_db
+    container_name: postgres_customer_db
     ports: ["5437:5432"]
     environment:
-      - POSTGRES_DB=constumer_db
+      - POSTGRES_DB=customer_db
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
   
@@ -113,4 +113,4 @@ services:
       - KC_HOSTNAME_STRICT=false
       - KC_HOSTNAME_STRICT_HTTPS=false
     ports:
-      - "8080:8080"
+      - "8081:8080"
