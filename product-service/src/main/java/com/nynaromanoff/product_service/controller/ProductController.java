@@ -64,6 +64,7 @@ public class ProductController {
                     product.getSku(),
                     product.getName(),
                     product.getDescription(),
+                    product.getImageUrl(),
                     product.getPrice()
             );
 
@@ -78,7 +79,7 @@ public class ProductController {
     @GetMapping("/{sku}")
     public ResponseEntity<ProductResponse> getProductBySku(@PathVariable String sku) {
         return repository.findBySku(sku.toUpperCase())
-                .map(p -> new ProductResponse(p.getSku(), p.getName(), p.getDescription(), p.getPrice()))
+                .map(p -> new ProductResponse(p.getSku(), p.getName(), p.getDescription(), p.getImageUrl(), p.getPrice()))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }

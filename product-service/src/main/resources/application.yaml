@@ -7,6 +7,12 @@ spring:
   profiles:
     active: local
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:8081/realms/saga-ecommerce/protocol/openid-connect/certs
+
   cloud:
     config:
       enabled: false

@@ -36,7 +36,6 @@ public class StorageService {
                 ? originalFilename.substring(originalFilename.lastIndexOf("."))
                 : "";
         String uniqueFileName = UUID.randomUUID().toString() + extension;
-
         try {
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(bucketName)
@@ -47,7 +46,14 @@ public class StorageService {
 
             s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
 
-            String publicUrl = "https://" + bucketName + ".s3." + region + "://" + uniqueFileName;            log.info("✅ [S3] Arquivo disponibilizado na nuvem com sucesso! URL: {}", publicUrl);
+            String publicUrl = "https://"
+                    + bucketName
+                    + ".s3."
+                    + region
+                    + ".amazonaws.com/"
+                    + uniqueFileName;
+
+            log.info("✅ [S3] Arquivo disponibilizado na nuvem com sucesso! URL: {}", publicUrl);
             return publicUrl;
 
         } catch (IOException e) {
