@@ -46,13 +46,13 @@ public class InventoryService {
 
     @Transactional
     public void initializeProductInventory(ProductCreatedEvent event) {
-        if (repository.findByProductSku(event.sku()).isPresent()) {
+        if (repository.findByProductSku(event.getSku()).isPresent()) {
             return;
         }
 
         ProductInventory inventory = ProductInventory.builder()
-                .productSku(event.sku().toUpperCase())
-                .availableQuantity(0)
+                .productSku(event.getSku().toUpperCase())
+                .availableQuantity(10)
                 .build();
 
         repository.save(inventory);
@@ -62,8 +62,8 @@ public class InventoryService {
     public Optional<ProductInventory> updateProductQuantity(String sku, UpdateQuantityDTO dto) {
         return repository.findByProductSku(sku.toUpperCase())
                 .map(inventory -> {
-                    inventory.setAvailableQuantity(dto.quantity()); // Atualiza a quantidade com o valor vindo da requisição
-                    return repository.save(inventory); // Salva no banco de dados
+                    inventory.setAvailableQuantity(dto.quantity());
+                    return repository.save(inventory);
                 });
     }
 

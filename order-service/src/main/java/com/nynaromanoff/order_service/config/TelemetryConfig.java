@@ -12,19 +12,16 @@ import jakarta.servlet.Filter;
 @Configuration
 public class TelemetryConfig {
 
-    // 🚀 Registra o interceptador nativo de requisições HTTP para gerar o Trace ID
     @Bean
     public Filter serverHttpObservationFilter(ObservationRegistry observationRegistry) {
         return new ServerHttpObservationFilter(observationRegistry);
     }
 
-    // Permite usar a anotação @Observed para monitorar métodos específicos, se necessário
     @Bean
     public ObservedAspect observedAspect(ObservationRegistry observationRegistry) {
         return new ObservedAspect(observationRegistry);
     }
 
-    // 🚀 O SEGREDO QUE FALTAVA: Força a sincronização do Trace ID com o Slf4j/Logback (MDC)
     @Bean
     public CurrentTraceContext micrometerCurrentTraceContext() {
         return new OtelCurrentTraceContext();

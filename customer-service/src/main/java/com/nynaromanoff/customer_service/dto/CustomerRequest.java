@@ -1,5 +1,9 @@
 package com.nynaromanoff.customer_service.dto;
 
+import com.nynaromanoff.customer_service.model.Address;
+
+import java.util.List;
+
 public record CustomerRequest(
         String firstName,
         String lastName,
@@ -7,5 +11,6 @@ public record CustomerRequest(
         String cpf,
         String phone,
         String password,
-        Boolean active) {
+        Boolean active,
+        List<Address> address) {
 }

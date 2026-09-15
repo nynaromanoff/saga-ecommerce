@@ -1,17 +1,11 @@
 package com.nynaromanoff.order_service.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.math.BigDecimal;
 
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class ProductResponse {
-    private String sku;
-    private String name;
-    private String description;
-    private BigDecimal price;
-}
+public record ProductResponse(
+        String sku,
+        String name,
+        String description,
+        String imageUrl,
+        BigDecimal price
+) {}

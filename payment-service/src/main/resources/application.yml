@@ -22,7 +22,7 @@ spring:
     port: 5672
     username: guest
     password: guest
-    connection-timeout: 10000ms # Aguarda at� 10 segundos pela conex�o
+    connection-timeout: 10000ms
     listener:
       simple:
         retry:
@@ -33,7 +33,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus # 🚀 Abre o endpoint do Prometheus
+        include: health,info,prometheus
   metrics:
     tags:
       application: ${spring.application.name}

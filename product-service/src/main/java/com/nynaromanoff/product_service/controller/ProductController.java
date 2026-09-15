@@ -4,10 +4,10 @@ import com.nynaromanoff.product_service.dto.ProductCreatedEvent;
 import com.nynaromanoff.product_service.dto.ProductRequest;
 import com.nynaromanoff.product_service.dto.ProductResponse;
 import com.nynaromanoff.product_service.model.Product;
-import com.nynaromanoff.product_service.producer.ProductProducer;
 import com.nynaromanoff.product_service.repository.ProductRepository;
 import com.nynaromanoff.product_service.service.StorageService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -15,9 +15,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import tools.jackson.databind.ObjectMapper;
 
-import java.math.BigDecimal;
 import java.util.UUID;
 
 @Slf4j
@@ -26,12 +24,12 @@ import java.util.UUID;
 public class ProductController {
     private final ProductRepository repository;
     private final StorageService storage;
-    private final ProductProducer productProducer;
+    private final RabbitTemplate rabbitTemplate;
 
-    public ProductController(ProductRepository repository, StorageService storage, ObjectMapper objectMapper, ProductProducer productProducer) {
+    public ProductController(ProductRepository repository, StorageService storage, RabbitTemplate rabbitTemplate) {
         this.repository = repository;
         this.storage = storage;
-        this.productProducer = productProducer;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -60,6 +58,10 @@ public class ProductController {
             repository.save(product);
             log.info("💾 [Postgres] Produto salvo no banco de dados com ID: {}", product.getId());
 
+            ProductCreatedEvent productCreatedEvent = new ProductCreatedEvent(product.getSku(), product.getName());
+            rabbitTemplate.convertAndSend("product.v1.product-created", "", productCreatedEvent);
+            log.info("🐰 [RabbitMQ] Evento de produto criado despachado com sucesso para a Exchange!");
+
             ProductResponse response = new ProductResponse(
                     product.getSku(),
                     product.getName(),
@@ -78,6 +80,7 @@ public class ProductController {
 
     @GetMapping("/{sku}")
     public ResponseEntity<ProductResponse> getProductBySku(@PathVariable String sku) {
+        log.info("🔍 [ProductAPI] Buscando produto pelo SKU: {}", sku);
         return repository.findBySku(sku.toUpperCase())
                 .map(p -> new ProductResponse(p.getSku(), p.getName(), p.getDescription(), p.getImageUrl(), p.getPrice()))
                 .map(ResponseEntity::ok)

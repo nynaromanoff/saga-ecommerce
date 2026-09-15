@@ -5,7 +5,6 @@ spring:
   application:
     name: order-service
 
-  # Desativa o Config Server que conflitava com o Feign antigo
   cloud:
     config:
       enabled: false

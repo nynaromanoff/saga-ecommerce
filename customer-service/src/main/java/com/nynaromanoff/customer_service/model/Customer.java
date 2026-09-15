@@ -40,7 +40,7 @@ public class Customer {
     @Column(nullable = false)
     private Boolean active;
 
-    @ElementCollection(fetch = FetchType.LAZY)
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "tb_customer_addresses",
             joinColumns = @JoinColumn(name = "customer_id"))
     @Builder.Default

@@ -20,17 +20,17 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5437/customer_db
     username: postgres
-    password: ${POSTGRES_PASSWORD}
+    password: admin
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
     properties:
       hibernate:
-        format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        boot:
+          allow_jdbc_metadata_access: true
 
 keycloak:
   server-url: http://localhost:8081

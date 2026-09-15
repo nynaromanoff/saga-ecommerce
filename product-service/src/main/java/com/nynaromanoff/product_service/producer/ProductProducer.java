@@ -17,7 +17,7 @@ public class ProductProducer {
     }
 
     public void sendProductCreatedMessage(ProductCreatedEvent event) {
-        log.info("Disparando evento de produto criado para o RabbitMQ: {}", event.sku());
+        log.info("Disparando evento de produto criado para o RabbitMQ: {}", event.getSku());
 
         rabbitTemplate.convertAndSend(RabbitMQConfig.PRODUCT_EXCHANGE, "", event);
     }

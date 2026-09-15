@@ -29,3 +29,13 @@ spring:
             - Path=/api/v1/customers/**
           filters:
             - RewritePath=/api/v1/customers(?<segment>/?.*), /api/v1/customers$\{segment}
+
+        - id: order-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/v1/orders/**
+
+        - id: inventory-service
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/v1/inventory/**

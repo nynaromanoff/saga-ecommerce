@@ -7,6 +7,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -17,4 +18,5 @@ public class OrderRequest {
     private Integer quantity;
     private List<ItemDTO> items;
     private BigDecimal totalValue;
+    private UUID customerId;
 }

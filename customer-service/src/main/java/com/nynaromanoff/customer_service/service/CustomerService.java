@@ -1,5 +1,6 @@
 package com.nynaromanoff.customer_service.service;
 
+import com.nynaromanoff.customer_service.dto.AddressResponse;
 import com.nynaromanoff.customer_service.dto.CustomerRequest;
 import com.nynaromanoff.customer_service.dto.CustomerResponse;
 import com.nynaromanoff.customer_service.model.Customer;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 @Service
 @Slf4j
@@ -51,22 +53,52 @@ public class CustomerService {
         if (customerRepository.existsByEmailIgnoreCase(request.email())) {
             throw new IllegalArgumentException("Este endereço de e-mail já está cadastrado.");
         }
-        provisionarNoKeycloak(request);
 
         Customer customer = Customer.builder()
                 .firstName(request.firstName())
                 .lastName(request.lastName())
                 .email(request.email().toLowerCase().trim())
                 .cpf(request.cpf().replaceAll("[^0-9]", ""))
-                .phone(request.phone())
                 .active(true)
-                .addresses(new ArrayList<>())
                 .build();
 
-        customerRepository.save(customer);
+        // 3. 🔥 TRATAMENTO DOS ENDEREÇOS (Evita tabelas órfãs ou nulas)
+        if (request.address() != null && !request.address().isEmpty()) {
+            // Se você usa @ElementCollection ou @OneToMany, injetamos a lista tratada
+            customer.setAddresses(new ArrayList<>(request.address()));
+        } else {
+            customer.setAddresses(new ArrayList<>());
+        }
+
+        // 4. 🔥 PERSISTÊNCIA BRUTA NO POSTGRES
+        // O flush força o Hibernate a cuspir o INSERT na tabela IMEDIATAMENTE
+        customer = customerRepository.saveAndFlush(customer);
         log.info("💾 [Postgres] Cliente persistido com sucesso sob o ID: {}", customer.getId());
 
-        return new CustomerResponse(customer.getId(), customer.getFirstName(), customer.getEmail(), customer.getActive());
+        // 5. PROVISIONAMENTO NO KEYCLOAK (Deixamos por último!)
+        // Se o Keycloak falhar, o @Transactional cancelará o insert do Postgres automaticamente
+        provisionarNoKeycloak(request);
+
+        List<AddressResponse> addressResponses = customer.getAddresses().stream()
+                .map(addr -> new AddressResponse(
+                        addr.getZipCode(),
+                        addr.getStreet(),
+                        addr.getNumber(),
+                        addr.getComplement(),
+                        addr.getNeighborhood(),
+                        addr.getCity(),
+                        addr.getState()
+                ))
+                .toList();
+
+        return new CustomerResponse(
+                customer.getId(),
+                customer.getFirstName(),
+                customer.getLastName(),
+                customer.getEmail(),
+                customer.getActive(),
+                addressResponses
+        );
     }
 
     private void provisionarNoKeycloak(CustomerRequest request) {
@@ -110,6 +142,18 @@ public class CustomerService {
     public CustomerResponse findById(java.util.UUID id) {
         Customer customer = customerRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Cliente não localizado."));
-        return new CustomerResponse(customer.getId(), customer.getFirstName(), customer.getEmail(), customer.getActive());
+        
+        List<AddressResponse> listaDeDtos = customer.getAddresses().stream()
+                .map(addr -> new AddressResponse(
+                        addr.getZipCode(),
+                        addr.getStreet(),
+                        addr.getNumber(),
+                        addr.getComplement(),
+                        addr.getNeighborhood(),
+                        addr.getCity(),
+                        addr.getState()
+                ))
+                .toList();
+        return new CustomerResponse(customer.getId(), customer.getFirstName(), customer.getLastName(), customer.getEmail(), customer.getActive(), listaDeDtos);
     }
 }

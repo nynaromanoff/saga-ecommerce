@@ -23,7 +23,7 @@ public class InventoryController {
             @RequestBody @Valid UpdateQuantityDTO request) {
 
         return service.updateProductQuantity(sku, request)
-                .map(inventory -> ResponseEntity.ok(inventory)) // Retorna 200 OK com o JSON atualizado
-                .orElse(ResponseEntity.notFound().build());    // Retorna 404 caso o SKU não exista
+                .map(inventory -> ResponseEntity.ok(inventory))
+                .orElse(ResponseEntity.notFound().build());
     }
 }

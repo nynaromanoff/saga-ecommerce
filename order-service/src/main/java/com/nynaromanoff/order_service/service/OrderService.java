@@ -1,5 +1,6 @@
 package com.nynaromanoff.order_service.service;
 
+import com.nynaromanoff.order_service.client.CustomerClient;
 import com.nynaromanoff.order_service.dto.*;
 import com.nynaromanoff.order_service.model.Order;
 import com.nynaromanoff.order_service.model.OrderItem;
@@ -10,6 +11,7 @@ import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
@@ -27,11 +29,13 @@ public class OrderService {
     private final OrderRepository repository;
     private final OrderProducer orderProducer;
     private final RestClient productRestClient;
+    private final CustomerClient  customerClient;
 
-    public OrderService(OrderRepository repository, OrderProducer orderProducer, RestClient productRestClient) {
+    public OrderService(OrderRepository repository, OrderProducer orderProducer, RestClient productRestClient, CustomerClient customerClient) {
         this.repository = repository;
         this.orderProducer = orderProducer;
         this.productRestClient = productRestClient;
+        this.customerClient = customerClient;
     }
 
     public Order createOrder(OrderRequest request) {
@@ -39,59 +43,99 @@ public class OrderService {
         List<OrderItem> orderItems = new ArrayList<>();
         BigDecimal totalOrderValue = BigDecimal.ZERO;
 
+        CustomerResponse customer = null;
+
         try {
+            try {
+                customer = customerClient.getCustomerById(request.getCustomerId());
+                log.info("👤 [Customer Service] Cliente localizado: {}", customer.firstName());
+            } catch (Exception e) {
+                log.error("❌ [Customer Service] Falha crítica na chamada do Feign para o ID: {}. Erro original: ", request.getCustomerId(), e);
+                throw new IllegalArgumentException("Não foi possível gerar o pedido. O cliente informado não existe no ecossistema ou a comunicação falhou.");
+            }
+
+            if (!customer.active()) {
+                log.warn("⚠️ COMPRA REJEITADA: O cliente {} está inativo no sistema.", customer.firstName());
+                throw new IllegalStateException("A conta do cliente está inativa. Operação bloqueada.");
+            }
+
+            if (customer.addresses() == null || customer.addresses().isEmpty()) {
+                log.warn("⚠️ COMPRA REJEITADA: O cliente {} não possui nenhum endereço de entrega cadastrado.", customer.firstName());
+                throw new IllegalArgumentException("Não é possível fechar o pedido. Cadastre um endereço de entrega primeiro.");
+            }
+
+            AddressResponse entrega = customer.addresses().get(0);
+            log.info("📦 [OrderService] Endereço de entrega selecionado: {}, Nº {}", entrega.street(), entrega.number());
+
             for (ItemDTO item : request.getItems()) {
                 log.info("Validando SKU [{}] no catálogo de produtos...", item.getProductSku());
 
-                ProductResponse produto = productRestClient.get()
-                        .uri("/{sku}", item.getProductSku().toUpperCase())
-                        .retrieve()
-                        .body(ProductResponse.class);
+                try{
 
-                if (produto == null) {
-                    throw new IllegalArgumentException("Produto inválido ou nulo no catálogo.");
+                    ResponseEntity<ProductResponse> response = productRestClient.get()
+                            .uri("/{sku}", item.getProductSku().toUpperCase())
+                            .retrieve()
+                            .toEntity(ProductResponse.class);
+
+                    log.info("📡 [Catálogo API] Resposta HTTP recebida. Status: {}, Corpo: {}", response.getStatusCode(), response.getBody());
+
+                    ProductResponse produto = response.getBody();
+
+                    if (produto == null) {
+                        throw new IllegalArgumentException("Produto inválido ou nulo no catálogo.");
+                    }
+
+                    BigDecimal itemTotal = produto.price().multiply(BigDecimal.valueOf(item.getQuantity()));
+                    totalOrderValue = totalOrderValue.add(itemTotal);
+
+                    orderItems.add(OrderItem.builder()
+                            .productSku(item.getProductSku().toUpperCase())
+                            .quantity(item.getQuantity())
+                            .price(produto.price())
+                            .build());
+                } catch (org.springframework.web.client.HttpClientErrorException.NotFound e) {
+                    log.error("❌ [404] O SKU {} realmente não existe no banco de dados do catálogo!", item.getProductSku());
+                    throw new IllegalArgumentException("Produto inexistente no catálogo.");
                 }
-
-                BigDecimal itemTotal = produto.getPrice().multiply(valueOf(item.getQuantity()));
-                totalOrderValue = totalOrderValue.add(itemTotal);
-
-                orderItems.add(OrderItem.builder()
-                        .productSku(item.getProductSku().toUpperCase())
-                        .quantity(item.getQuantity())
-                        .price(produto.getPrice())
-                        .build());
             }
 
-        Order order = Order.builder()
-                .items(orderItems)
-                .totalValue(totalOrderValue)
-                .status(OrderStatus.PENDING)
-                .createdAt(LocalDateTime.now())
-                .build();
+            Order order = Order.builder()
+                    .customerId(customer.id())
+                    .deliveryStreet(entrega.street())
+                    .deliveryNumber(entrega.number())
+                    .deliveryZipCode(entrega.zipCode())
+                    .items(orderItems)
+                    .totalValue(totalOrderValue)
+                    .status(OrderStatus.PENDING)
+                    .createdAt(LocalDateTime.now())
+                    .build();
 
-        repository.save(order);
-        log.info("Pedido registrado com sucesso ID: {}. Status: PENDING", order.getId());
+            repository.save(order);
+            log.info("Pedido registrado com sucesso ID: {}. Status: PENDING", order.getId());
 
-        List<ItemDTO> itensFila = order.getItems()
-                .stream()
-                .map(item -> new ItemDTO(item.getProductSku(), item.getQuantity()))
-                .toList();
+            List<ItemDTO> itensFila = order.getItems()
+                    .stream()
+                    .map(item -> new ItemDTO(item.getProductSku(), item.getQuantity()))
+                    .toList();
 
-        OrderCreatedEvent event = OrderCreatedEvent.builder()
-                .orderId(order.getId())
-                .items(itensFila)
-                .totalValue(order.getTotalValue())
-                .build();
+            OrderCreatedEvent event = OrderCreatedEvent.builder()
+                    .orderId(order.getId())
+                    .items(itensFila)
+                    .totalValue(order.getTotalValue())
+                    .build();
 
-        orderProducer.sendOrderCreatedMessage(event);
-        log.info("Evento da Saga publicado com {} itens para processamento distribuído.", itensFila.size());
+            orderProducer.sendOrderCreatedMessage(event);
+            log.info("Evento da Saga publicado com {} itens para processamento distribuído.", itensFila.size());
 
-        return order;
-    }catch(HttpClientErrorException.NotFound e){
-        log.error("⚠️ COMPRA REJEITADA: Produto inexistente no catálogo.");
-        throw new IllegalArgumentException("Produto inválido ou inexistente no catálogo.");
-    }
+            return order;
 
+        } catch (HttpClientErrorException.NotFound e) {
+            log.error("❌ [Catálogo] Produto não encontrado no microsserviço de produtos: ", e);
+            throw new IllegalArgumentException("Produto inválido ou inexistente no catálogo.");
+        } catch (Exception e) {
+            log.error("❌ [Erro Genérico] Falha inesperada no processamento da ordem: ", e);
+            throw e;
+        }
     }
 
     @Transactional
