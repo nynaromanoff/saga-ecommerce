@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
@@ -38,8 +39,8 @@ public class OrderService {
         this.customerClient = customerClient;
     }
 
-    public Order createOrder(OrderRequest request) {
-        log.info("Iniciando processamento de novo pedido com {} item(ns)...", request.getItems().size());
+    public Order createOrder(OrderRequest request, Jwt jwt) {
+        log.info("Iniciando processamento de novo pedido com {} item(ns)...", request.items().size());
         List<OrderItem> orderItems = new ArrayList<>();
         BigDecimal totalOrderValue = BigDecimal.ZERO;
 
@@ -47,10 +48,10 @@ public class OrderService {
 
         try {
             try {
-                customer = customerClient.getCustomerById(request.getCustomerId());
+                customer = customerClient.getCurrentCustomer();
                 log.info("👤 [Customer Service] Cliente localizado: {}", customer.firstName());
             } catch (Exception e) {
-                log.error("❌ [Customer Service] Falha crítica na chamada do Feign para o ID: {}. Erro original: ", request.getCustomerId(), e);
+                log.error("❌ [Customer Service] Falha crítica na chamada do Feign para o ID: {}. Erro original: ","", e);
                 throw new IllegalArgumentException("Não foi possível gerar o pedido. O cliente informado não existe no ecossistema ou a comunicação falhou.");
             }
 
@@ -67,7 +68,7 @@ public class OrderService {
             AddressResponse entrega = customer.addresses().get(0);
             log.info("📦 [OrderService] Endereço de entrega selecionado: {}, Nº {}", entrega.street(), entrega.number());
 
-            for (ItemDTO item : request.getItems()) {
+            for (ItemDTO item : request.items()) {
                 log.info("Validando SKU [{}] no catálogo de produtos...", item.getProductSku());
 
                 try{

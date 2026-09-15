@@ -14,6 +14,7 @@ import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -48,10 +49,15 @@ public class CustomerService {
 
     @Transactional
     public CustomerResponse createCustomer(CustomerRequest request) {
-        log.info("👤 [CustomerService] Iniciando cadastro global para: {}", request.email());
+        log.info(
+                "👤 [CustomerService] Iniciando cadastro para: {}",
+                request.email()
+        );
 
         if (customerRepository.existsByEmailIgnoreCase(request.email())) {
-            throw new IllegalArgumentException("Este endereço de e-mail já está cadastrado.");
+            throw new IllegalArgumentException(
+                    "Este endereço de e-mail já está cadastrado."
+            );
         }
 
         Customer customer = Customer.builder()
@@ -60,36 +66,43 @@ public class CustomerService {
                 .email(request.email().toLowerCase().trim())
                 .cpf(request.cpf().replaceAll("[^0-9]", ""))
                 .active(true)
+                .addresses(
+                        request.address() != null
+                                ? new ArrayList<>(request.address())
+                                : new ArrayList<>()
+                )
                 .build();
 
-        // 3. 🔥 TRATAMENTO DOS ENDEREÇOS (Evita tabelas órfãs ou nulas)
-        if (request.address() != null && !request.address().isEmpty()) {
-            // Se você usa @ElementCollection ou @OneToMany, injetamos a lista tratada
-            customer.setAddresses(new ArrayList<>(request.address()));
-        } else {
-            customer.setAddresses(new ArrayList<>());
-        }
+        String keycloakUserId = provisionarNoKeycloak(request);
 
-        // 4. 🔥 PERSISTÊNCIA BRUTA NO POSTGRES
-        // O flush força o Hibernate a cuspir o INSERT na tabela IMEDIATAMENTE
+        customer.setKeycloakUserId(keycloakUserId);
+
         customer = customerRepository.saveAndFlush(customer);
-        log.info("💾 [Postgres] Cliente persistido com sucesso sob o ID: {}", customer.getId());
 
-        // 5. PROVISIONAMENTO NO KEYCLOAK (Deixamos por último!)
-        // Se o Keycloak falhar, o @Transactional cancelará o insert do Postgres automaticamente
-        provisionarNoKeycloak(request);
+        log.info(
+                "💾 [Postgres] Cliente persistido. ID={}, KeycloakID={}",
+                customer.getId(),
+                customer.getKeycloakUserId()
+        );
 
-        List<AddressResponse> addressResponses = customer.getAddresses().stream()
-                .map(addr -> new AddressResponse(
-                        addr.getZipCode(),
-                        addr.getStreet(),
-                        addr.getNumber(),
-                        addr.getComplement(),
-                        addr.getNeighborhood(),
-                        addr.getCity(),
-                        addr.getState()
-                ))
-                .toList();
+        return toResponse(customer);
+    }
+
+    private CustomerResponse toResponse(Customer customer) {
+
+        List<AddressResponse> addresses =
+                customer.getAddresses()
+                        .stream()
+                        .map(addr -> new AddressResponse(
+                                addr.getZipCode(),
+                                addr.getStreet(),
+                                addr.getNumber(),
+                                addr.getComplement(),
+                                addr.getNeighborhood(),
+                                addr.getCity(),
+                                addr.getState()
+                        ))
+                        .toList();
 
         return new CustomerResponse(
                 customer.getId(),
@@ -97,11 +110,11 @@ public class CustomerService {
                 customer.getLastName(),
                 customer.getEmail(),
                 customer.getActive(),
-                addressResponses
+                addresses
         );
     }
 
-    private void provisionarNoKeycloak(CustomerRequest request) {
+    private String provisionarNoKeycloak(CustomerRequest request) {
         log.info("🛡️ [Keycloak] Comunicando com a API Admin para registrar credencial...");
 
         Keycloak kcAdmin = KeycloakBuilder.builder()
@@ -112,22 +125,33 @@ public class CustomerService {
                 .clientId(adminClientId)
                 .build();
 
+
+        CredentialRepresentation credential = new CredentialRepresentation();
+        credential.setTemporary(false);
+        credential.setType(CredentialRepresentation.PASSWORD);
+        credential.setValue(request.password());
+
         UserRepresentation user = new UserRepresentation();
         user.setEnabled(true);
         user.setUsername(request.email().toLowerCase().trim());
         user.setEmail(request.email().toLowerCase().trim());
         user.setFirstName(request.firstName());
+        user.setLastName(request.lastName());
+        user.setCredentials(Collections.singletonList(credential));
         user.setEmailVerified(true);
 
-        CredentialRepresentation passwordCred = new CredentialRepresentation();
-        passwordCred.setTemporary(false);
-        passwordCred.setType(CredentialRepresentation.PASSWORD);
-        passwordCred.setValue(request.password());
-        user.setCredentials(Collections.singletonList(passwordCred));
 
         try (Response response = kcAdmin.realm(realm).users().create(user)) {
             if (response.getStatus() == 201) {
-                log.info("✅ [Keycloak] Usuário provisionado e senha criptografada com sucesso!");
+                String location = response.getHeaderString("Location");
+
+                if (location == null || location.isBlank()) {
+                    throw new RuntimeException("Keycloak criou o usuário, mas não retornou o Location.");
+                }
+                String keycloakUserId = location.substring(location.lastIndexOf("/") + 1);
+                log.info("✅ [Keycloak] Usuário criado com ID: {}", keycloakUserId);
+                return keycloakUserId;
+
             } else if (response.getStatus() == 409) {
                 log.warn("⚠️ [Keycloak] Conflito: Usuário já existe no provedor de identidades.");
                 throw new IllegalArgumentException("Este e-mail já está registrado no servidor de autenticação.");
@@ -155,5 +179,22 @@ public class CustomerService {
                 ))
                 .toList();
         return new CustomerResponse(customer.getId(), customer.getFirstName(), customer.getLastName(), customer.getEmail(), customer.getActive(), listaDeDtos);
+    }
+
+    @Transactional(readOnly = true)
+    public CustomerResponse findCurrentCustomer(Jwt jwt) {
+        String keycloakUserId = jwt.getSubject();
+        log.info(
+                "🔐 Buscando cliente autenticado pelo Keycloak ID: {}",
+                keycloakUserId
+        );
+        Customer customer = customerRepository
+                .findByKeycloakUserId(keycloakUserId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Cliente não localizado para o usuário autenticado."
+                        )
+                );
+        return toResponse(customer);
     }
 }

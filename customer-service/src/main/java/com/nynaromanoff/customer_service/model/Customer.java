@@ -21,6 +21,9 @@ public class Customer {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(unique = true, nullable = false)
+    private String keycloakUserId;
+
     @Column(nullable = false, length = 100)
     private String firstName;
 
