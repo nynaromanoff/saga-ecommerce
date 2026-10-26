@@ -1,13 +1,14 @@
 server:
   port: 8083
+
 spring:
   application:
     name: payment-service
 
   datasource:
-    url: jdbc:postgresql://localhost:5434/payment_db
-    username: postgres
-    password: admin
+    url: "${PAYMENT_DATABASE_URL:jdbc:postgresql://localhost:5434/payment_db}"
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:admin}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -18,11 +19,11 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
   rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
-    connection-timeout: 10000ms # Aguarda at� 10 segundos pela conex�o
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:saga}
+    password: ${RABBITMQ_PASSWORD:saga_local_dev}
+    connection-timeout: 10000ms
     listener:
       simple:
         retry:
@@ -33,10 +34,10 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus # 🚀 Abre o endpoint do Prometheus
+        include: health,info,prometheus
   metrics:
     tags:
       application: ${spring.application.name}
 
 stripe:
-  secret-key: ${STRIPE_SECRET_KEY:sk_test_chave}
+  secret-key: ${STRIPE_SECRET_KEY:}
