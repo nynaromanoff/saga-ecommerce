@@ -10,15 +10,12 @@ import com.nynaromanoff.order_service.repository.OrderRepository;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 import java.math.BigDecimal;
-import static java.math.BigDecimal.valueOf;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -39,7 +36,7 @@ public class OrderService {
         this.customerClient = customerClient;
     }
 
-    public Order createOrder(OrderRequest request, Jwt jwt) {
+    public Order createOrder(OrderRequest request) {
         log.info("Iniciando processamento de novo pedido com {} item(ns)...", request.items().size());
         List<OrderItem> orderItems = new ArrayList<>();
         BigDecimal totalOrderValue = BigDecimal.ZERO;
@@ -47,13 +44,8 @@ public class OrderService {
         CustomerResponse customer = null;
 
         try {
-            try {
-                customer = customerClient.getCurrentCustomer();
-                log.info("👤 [Customer Service] Cliente localizado: {}", customer.firstName());
-            } catch (Exception e) {
-                log.error("❌ [Customer Service] Falha crítica na chamada do Feign para o ID: {}. Erro original: ","", e);
-                throw new IllegalArgumentException("Não foi possível gerar o pedido. O cliente informado não existe no ecossistema ou a comunicação falhou.");
-            }
+            customer = customerClient.getCurrentCustomer();
+            log.info("👤 [Customer Service] Cliente localizado: {}", customer.firstName());
 
             if (!customer.active()) {
                 log.warn("⚠️ COMPRA REJEITADA: O cliente {} está inativo no sistema.", customer.firstName());

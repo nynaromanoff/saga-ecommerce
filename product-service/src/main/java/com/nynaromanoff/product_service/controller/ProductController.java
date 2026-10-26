@@ -4,10 +4,8 @@ import com.nynaromanoff.product_service.dto.ProductCreatedEvent;
 import com.nynaromanoff.product_service.dto.ProductRequest;
 import com.nynaromanoff.product_service.dto.ProductResponse;
 import com.nynaromanoff.product_service.model.Product;
-import com.nynaromanoff.product_service.repository.ProductRepository;
-import com.nynaromanoff.product_service.service.StorageService;
+import com.nynaromanoff.product_service.service.ProductService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -22,15 +20,12 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/products")
 public class ProductController {
-    private final ProductRepository repository;
-    private final StorageService storage;
-    private final RabbitTemplate rabbitTemplate;
+    private final ProductService service;
 
-    public ProductController(ProductRepository repository, StorageService storage, RabbitTemplate rabbitTemplate) {
-        this.repository = repository;
-        this.storage = storage;
-        this.rabbitTemplate = rabbitTemplate;
+    public ProductController(ProductService service) {
+        this.service = service;
     }
+
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ProductResponse> create(
@@ -44,35 +39,14 @@ public class ProductController {
             return ResponseEntity.badRequest().build();
         }
         try {
-            String urlImagemS3 = storage.uploadFile(file);
-            log.info("✅ [S3] Upload concluído com sucesso. URL gerada: {}", urlImagemS3);
-
-            Product product = Product.builder()
-                    .sku(request.sku())
-                    .name(request.name())
-                    .description(request.description())
-                    .price(request.price())
-                    .imageUrl(urlImagemS3) // Salva o link oficial da AWS na tabela
-                    .build();
-
-            repository.save(product);
-            log.info("💾 [Postgres] Produto salvo no banco de dados com ID: {}", product.getId());
-
-            ProductCreatedEvent productCreatedEvent = new ProductCreatedEvent(product.getSku(), product.getName());
-            rabbitTemplate.convertAndSend("product.v1.product-created", "", productCreatedEvent);
-            log.info("🐰 [RabbitMQ] Evento de produto criado despachado com sucesso para a Exchange!");
-
-            ProductResponse response = new ProductResponse(
-                    product.getSku(),
-                    product.getName(),
-                    product.getDescription(),
-                    product.getImageUrl(),
-                    product.getPrice()
-            );
-
+            ProductResponse response = service.createProduct(request, file);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
 
-        } catch (Exception e) {
+        }catch (IllegalArgumentException e) {
+            log.warn("⚠️ Validação de negócio: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+        catch (Exception e) {
             log.error("❌ Falha crítica ao processar cadastro de produto e upload na AWS", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
@@ -81,38 +55,37 @@ public class ProductController {
     @GetMapping("/{sku}")
     public ResponseEntity<ProductResponse> getProductBySku(@PathVariable String sku) {
         log.info("🔍 [ProductAPI] Buscando produto pelo SKU: {}", sku);
-        return repository.findBySku(sku.toUpperCase())
-                .map(p -> new ProductResponse(p.getSku(), p.getName(), p.getDescription(), p.getImageUrl(), p.getPrice()))
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+       try {
+           ProductResponse response = service.getProductBySku(sku);
+           return ResponseEntity.ok(response);
+       }catch (IllegalArgumentException e) {
+           return ResponseEntity.notFound().build();
+       }
     }
 
     @GetMapping
     public ResponseEntity<Page<Product>> listAll(Pageable pageable) {
-        Page<Product> products = repository.findAll(pageable);
-        return ResponseEntity.ok(products);
+        return ResponseEntity.ok(service.listAll(pageable));
     }
 
     @GetMapping("/search")
     public ResponseEntity<Page<Product>> getProductByName(@RequestParam("name") String name,
                                                          Pageable pageable) {
-        Page<Product> products = repository.findByNameContainingIgnoreCase(name, pageable);
-        return ResponseEntity.ok(products);
+        return ResponseEntity.ok(service.searchProductByName(name, pageable));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         log.info("Iniciando processo de exclusão do produto ID: {}", id);
 
-        return repository.findById(id)
-                .map(product -> {
-                    storage.deleteFile(product.getImageUrl());
-                    repository.delete(product);
-                    log.info("✅ Produto ID {} e sua imagem correspondente foram excluídos.", id);
-
-              return ResponseEntity.noContent().<Void>build();
-                })
-                .orElse(ResponseEntity.notFound().build());
+        try {
+            service.deleteProduct(id);
+            return ResponseEntity.noContent().build();
+        }catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
 }

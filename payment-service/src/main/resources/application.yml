@@ -39,4 +39,5 @@ management:
       application: ${spring.application.name}
 
 stripe:
-  secret-key: ${STRIPE_SECRET_KEY:sk_test_chave}
+  secret-key: ${STRIPE_SECRET_KEY:}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
