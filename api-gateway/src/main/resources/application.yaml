@@ -14,18 +14,16 @@ spring:
       globalcors:
         cors-configurations:
           '[/**]':
-            allowedOrigins: "http://localhost:5173"
+            allowedOrigins: "${FRONTEND_ORIGIN:http://localhost:5173}"
             allowedMethods: "*"
             allowedHeaders: "*"
       routes:
         - id: product-service
-          uri: http://localhost:8085
+          uri: "${PRODUCT_SERVICE_URL:http://localhost:8085}"
           predicates:
             - Path=/api/v1/products/**
 
         - id: customer-service
-          uri: http://localhost:8086
+          uri: "${CUSTOMER_SERVICE_URL:http://localhost:8086}"
           predicates:
             - Path=/api/v1/customers/**
-          filters:
-            - RewritePath=/api/v1/customers(?<segment>/?.*), /api/v1/customers$\{segment}
