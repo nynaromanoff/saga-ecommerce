@@ -6,9 +6,9 @@ spring:
     name: inventory-service
 
   datasource:
-    url: jdbc:postgresql://localhost:5435/inventory_db
-    username: postgres
-    password: admin
+    url: "${INVENTORY_DATABASE_URL:jdbc:postgresql://localhost:5435/inventory_db}"
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:admin}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -19,10 +19,10 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
   rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:saga}
+    password: ${RABBITMQ_PASSWORD:saga_local_dev}
 
 management:
   endpoints:
