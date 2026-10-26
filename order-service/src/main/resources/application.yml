@@ -5,6 +5,12 @@ spring:
   application:
     name: order-service
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:8081/realms/saga-ecommerce/protocol/openid-connect/certs
+
   cloud:
     config:
       enabled: false
@@ -23,6 +29,7 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
         boot:
           allow_jdbc_metadata_access: true
 

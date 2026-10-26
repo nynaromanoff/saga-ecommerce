@@ -24,10 +24,11 @@ public class Order {
     @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id")
     private List<OrderItem> items;
-
     private BigDecimal totalValue;
-
     private OrderStatus status;
-
     private LocalDateTime createdAt;
+    private UUID customerId;
+    private String deliveryStreet;
+    private String deliveryNumber;
+    private String deliveryZipCode;
 }

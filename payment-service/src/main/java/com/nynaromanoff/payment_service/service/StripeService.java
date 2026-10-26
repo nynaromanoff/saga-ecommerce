@@ -1,3 +1,4 @@
+
 package com.nynaromanoff.payment_service.service;
 
 import com.stripe.Stripe;
@@ -9,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Service
 @Slf4j
@@ -19,40 +21,34 @@ public class StripeService {
 
     @PostConstruct
     public void init() {
-        Stripe.apiKey = this.secretKey;
+        Stripe.apiKey = secretKey;
     }
 
-    public boolean processCardPayment(BigDecimal value, String orderId) {
-        try {
-            long amountInCents = value.multiply(new BigDecimal("100")).longValue();
+    public PaymentIntent createPaymentIntent(BigDecimal value, UUID orderId) throws Exception {
+        if (value == null || value.signum() <= 0) {throw new IllegalArgumentException("O valor do pagamento deve ser maior que zero.");}
 
-            PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
-                    .setAmount(amountInCents)
-                    .setCurrency("brl") // Define a moeda como Real Brasileiro
-                    // Em produção, você capturaria o token do cartão vindo do front-end React
-                    .setPaymentMethod("pm_card_visa") // Token oficial de teste da Stripe para cartão Visa válido
-                    .setConfirm(true) // Confirma o pagamento imediatamente
-                    .setAutomaticPaymentMethods(
-                            PaymentIntentCreateParams.AutomaticPaymentMethods.builder()
-                                    .setEnabled(true)
-                                    .setAllowRedirects(PaymentIntentCreateParams.AutomaticPaymentMethods.AllowRedirects.NEVER)
-                                    .build()
-                    )
-                    .putMetadata("order_id", orderId) // Vincula o ID do seu pedido nas propriedades da Stripe
-                    .build();
+        long amountInCents = value.movePointRight(2).longValueExact();
 
-            // Dispara a requisição HTTP real para os servidores da Stripe!
-            PaymentIntent intent = PaymentIntent.create(params);
+        PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
+                .setAmount(amountInCents)
+                .setCurrency("brl")
+                .setAutomaticPaymentMethods(
+                        PaymentIntentCreateParams
+                                .AutomaticPaymentMethods
+                                .builder()
+                                .setEnabled(true)
+                                .build()
+                        )
+                        .putMetadata("order_id", orderId.toString())
+                        .build();
 
-            log.info("💰 [Stripe] Resposta recebida da API externa. ID da Transação: {}. Status: {}",
-                    intent.getId(), intent.getStatus());
+        PaymentIntent intent = PaymentIntent.create(params);
 
-            // Retorna verdadeiro se o status for "succeeded" (pago com sucesso)
-            return "succeeded".equalsIgnoreCase(intent.getStatus());
+        log.info("[Stripe] PaymentIntent criado: orderId={}, intentId={}, status={}", orderId, intent.getId(), intent.getStatus());
+        return intent;
+    }
 
-        } catch (Exception e) {
-            log.error("❌ [Stripe] Falha crítica ao processar cobrança na API externa para o pedido {}", orderId, e);
-            return false; // Retorna falso se o cartão for recusado ou a API falhar
-        }
+    public PaymentIntent retrievePaymentIntent(String paymentIntentId) throws Exception {
+        return PaymentIntent.retrieve(paymentIntentId);
     }
 }

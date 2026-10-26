@@ -6,12 +6,13 @@ import com.nynaromanoff.customer_service.service.CustomerService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/customers")
-@CrossOrigin(origins = "http://localhost:5173")
 public class CustomerController {
 
     private final CustomerService service;
@@ -23,6 +24,13 @@ public class CustomerController {
     @PostMapping
     public ResponseEntity<CustomerResponse> create(@RequestBody CustomerRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.createCustomer(request));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<CustomerResponse> me(@AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(
+                service.findCurrentCustomer(jwt)
+        );
     }
 
     @GetMapping("/{id}")
