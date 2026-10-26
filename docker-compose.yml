@@ -1,4 +1,3 @@
-# 🌐 REDE DECLARADA DE FORMA EXPLICITA NO TOPO (Padrão de Mercado)
 networks:
   saga-network:
     driver: bridge
@@ -11,106 +10,176 @@ services:
       - "5672:5672"
       - "15672:15672"
     environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-saga}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-saga_local_dev}
     networks:
       - saga-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
- # 📈 PROMETHEUS: Vai entrar nas aplicações Java e puxar as métricas de segundo em segundo
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.5.0
     container_name: prometheus_saga
     ports:
       - "9090:9090"
     volumes:
-      - "./prometheus.yml:/etc/prometheus/prometheus.yml"
+      - "./prometheus.yml:/etc/prometheus/prometheus.yml:ro"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
       - saga-network
 
-  # 📊 GRAFANA: Painel visual para criar os gráficos baseados no Prometheus
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:12.1.0
     container_name: grafana_saga
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-    depends_on:
-      - prometheus
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - grafana-data:/var/lib/grafana
     networks:
       - saga-network
+    depends_on:
+      - prometheus
 
-  # 🐘 Bancos de Dados Isolados
   postgres-order:
     image: postgres:15-alpine
     container_name: postgres_order_db
-    ports: ["5433:5432"]
+    ports:
+      - "5433:5432"
     environment:
-      - POSTGRES_DB=order_db
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      POSTGRES_DB: order_db
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+    volumes:
+      - postgres-order-data:/var/lib/postgresql/data
+    networks:
+      - saga-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d order_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   postgres-payment:
     image: postgres:15-alpine
     container_name: postgres_payment_db
-    ports: ["5434:5432"]
+    ports:
+      - "5434:5432"
     environment:
-      - POSTGRES_DB=payment_db
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      POSTGRES_DB: payment_db
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+    volumes:
+      - postgres-payment-data:/var/lib/postgresql/data
+    networks:
+      - saga-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d payment_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   postgres-inventory:
     image: postgres:15-alpine
     container_name: postgres_inventory_db
-    ports: ["5435:5432"]
+    ports:
+      - "5435:5432"
     environment:
-      - POSTGRES_DB=inventory_db
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      POSTGRES_DB: inventory_db
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+    volumes:
+      - postgres-inventory-data:/var/lib/postgresql/data
+    networks:
+      - saga-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d inventory_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   postgres-product:
     image: postgres:15-alpine
     container_name: postgres_product_db
-    ports: ["5436:5432"] 
+    ports:
+      - "5436:5432"
     environment:
-      - POSTGRES_DB=product_db
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      POSTGRES_DB: product_db
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+    volumes:
+      - postgres-product-data:/var/lib/postgresql/data
+    networks:
+      - saga-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d product_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   postgres-customer:
     image: postgres:15-alpine
     container_name: postgres_customer_db
-    ports: ["5437:5432"]
+    ports:
+      - "5437:5432"
     environment:
-      - POSTGRES_DB=customer_db
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-  
+      POSTGRES_DB: customer_db
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+    volumes:
+      - postgres-customer-data:/var/lib/postgresql/data
+    networks:
+      - saga-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d customer_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   localstack:
-    image: localstack/localstack:latest
+    image: localstack/localstack:3.8.1
     container_name: localstack_s3
     ports:
       - "4566:4566"
     environment:
-      - SERVICES=s3
-      - AWS_DEFAULT_REGION= east-1
-      - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN}
+      SERVICES: s3
+      AWS_DEFAULT_REGION: us-east-1
+      LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN:-}
     volumes:
-      - "./localstack-init:/etc/localstack/init/ready.d"
+      - "./localstack-init:/etc/localstack/init/ready.d:ro"
     networks:
       - saga-network
-  
+    healthcheck:
+      test: ["CMD", "bash", "-c", "curl -fsS http://localhost:4566/_localstack/health >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
   keycloak:
-    image: quay.io/keycloak/keycloak:26.0.2 
+    image: quay.io/keycloak/keycloak:26.0.2
     container_name: keycloak
     command: start-dev
     environment:
-      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
-      - KC_BOOTSTRAP_ADMIN_PASSWORD=${KEYCLOAK_PASSWORD} 
-      - KC_HTTP_ENABLED=true
-      - KC_HOSTNAME_STRICT=false
-      - KC_HOSTNAME_STRICT_HTTPS=false
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_PASSWORD:-admin}
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
     ports:
       - "8081:8080"
+    networks:
+      - saga-network
+
+volumes:
+  grafana-data:
+  postgres-order-data:
+  postgres-payment-data:
+  postgres-inventory-data:
+  postgres-product-data:
+  postgres-customer-data:

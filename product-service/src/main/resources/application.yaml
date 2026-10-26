@@ -11,7 +11,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          jwk-set-uri: http://localhost:8081/realms/saga-ecommerce/protocol/openid-connect/certs
+          jwk-set-uri: "${KEYCLOAK_URL:http://localhost:8081}/realms/${KEYCLOAK_REALM:saga-ecommerce}/protocol/openid-connect/certs"
 
   cloud:
     config:
@@ -20,15 +20,15 @@ spring:
         enabled: false
 
   rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:saga}
+    password: ${RABBITMQ_PASSWORD:saga_local_dev}
 
   datasource:
-    url: jdbc:postgresql://localhost:5436/product_db
-    username: postgres
-    password: admin
+    url: "${PRODUCT_DATABASE_URL:jdbc:postgresql://localhost:5436/product_db}"
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:admin}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -48,9 +48,9 @@ management:
       application: ${spring.application.name}
 
 aws:
+  access-key-id: ${AWS_ACCESS_KEY_ID:test}
+  secret-access-key: ${AWS_SECRET_ACCESS_KEY:test}
   s3:
-    bucket-name: saga-ecommerce-products
-    region: us-east-1
-  credentials:
-    access-key: ${AWS_ACCESS_KEY_ID}
-    secret-key: ${AWS_SECRET_ACCESS_KEY}
+    bucket-name: ${AWS_S3_BUCKET:saga-ecommerce-products}
+    region: ${AWS_REGION:us-east-1}
+    endpoint: ${AWS_S3_ENDPOINT:http://localhost:4566}

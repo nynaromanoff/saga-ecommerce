@@ -1,13 +1,14 @@
 server:
   port: 8083
+
 spring:
   application:
     name: payment-service
 
   datasource:
-    url: jdbc:postgresql://localhost:5434/payment_db
-    username: postgres
-    password: admin
+    url: "${PAYMENT_DATABASE_URL:jdbc:postgresql://localhost:5434/payment_db}"
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:admin}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -22,6 +23,10 @@ spring:
     port: 5672
     username: guest
     password: guest
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:saga}
+    password: ${RABBITMQ_PASSWORD:saga_local_dev}
     connection-timeout: 10000ms
     listener:
       simple:

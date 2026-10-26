@@ -8,9 +8,7 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
-import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
-import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
-import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
+import software.amazon.awssdk.services.s3.S3Configuration;
 
 import java.net.URI;
 
@@ -25,13 +23,25 @@ public class AwsS3Config {
     @Value("${aws.s3.region}")
     private String region;
 
+    @Value("${aws.s3.endpoint:}")
+    private String endpoint;
+
     @Bean
     public S3Client s3Client() {
         AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
 
-        return S3Client.builder()
+        S3ClientBuilder builder = S3Client.builder()
                 .region(Region.of(region))
-                .credentialsProvider(StaticCredentialsProvider.create(credentials))
-                .build();
-}
+                .credentialsProvider(StaticCredentialsProvider.create(credentials));
+
+        // Endpoint customizado é usado para LocalStack; vazio usa o endpoint oficial da AWS.
+        if (endpoint != null && !endpoint.isBlank()) {
+            builder.endpointOverride(URI.create(endpoint))
+                    .serviceConfiguration(S3Configuration.builder()
+                            .pathStyleAccessEnabled(true)
+                            .build());
+        }
+
+        return builder.build();
+    }
 }
